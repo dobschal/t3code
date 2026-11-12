@@ -549,6 +549,16 @@ export const make = Effect.gen(function* () {
         })
         .pipe(Effect.mapError(fail("listRepositoryLabels"))),
 
+    listPipelines: (input) =>
+      cli
+        .listProjectPipelines({
+          cwd: input.cwd,
+          host: input.host,
+          repository: input.repository,
+          limit: input.limit,
+        })
+        .pipe(Effect.mapError(fail("listPipelines"))),
+
     searchRepositoryAuthors: (input) =>
       cli
         .listProjectUsers({

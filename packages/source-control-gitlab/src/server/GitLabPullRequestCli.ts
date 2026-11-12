@@ -19,6 +19,7 @@ import type {
   PullRequestComment,
   PullRequestCommit,
   PullRequestInvolvement,
+  Pipeline,
   PullRequestLabel,
   PullRequestLabelCandidateList,
   PullRequestListFilters,
@@ -63,6 +64,7 @@ import {
   decodePipelineStageChecksJson,
   decodeProjectMergeCapabilitiesJson,
   decodeProjectLabelsJson,
+  decodeProjectPipelinesJson,
   decodeProjectUsersJson,
   decodeReferenceCandidatesJson,
   decodeRepositoryBlobsJson,
@@ -507,6 +509,13 @@ export class GitLabPullRequestCli extends Context.Service<
       readonly number: number;
       readonly query?: string | undefined;
     }) => Effect.Effect<PullRequestReviewerCandidateList, GitLabPullRequestCliError>;
+
+    readonly listProjectPipelines: (input: {
+      readonly cwd: string;
+      readonly host?: string | undefined;
+      readonly repository: string;
+      readonly limit: number;
+    }) => Effect.Effect<ReadonlyArray<Pipeline>, GitLabPullRequestCliError>;
 
     readonly listProjectLabels: (input: {
       readonly cwd: string;
@@ -2473,6 +2482,32 @@ export const make = Effect.gen(function* () {
         );
       },
     ),
+
+    listProjectPipelines: Effect.fn("GitLabPullRequestCli.listProjectPipelines")(function (input) {
+      return api({
+        cwd: input.cwd,
+        host: input.host,
+        path: `projects/${projectPath(input.repository)}/pipelines?${query([
+          ["order_by", "id"],
+          ["sort", "desc"],
+          ["per_page", String(Math.min(input.limit, MAX_PAGE_SIZE))],
+        ])}`,
+      }).pipe(
+        Effect.flatMap((result) => {
+          const decoded = decodeProjectPipelinesJson(result.stdout.trim());
+          return Result.isSuccess(decoded)
+            ? Effect.succeed(decoded.success)
+            : Effect.fail(
+                new GitLabMergeRequestReadError({
+                  command: "glab",
+                  cwd: input.cwd,
+                  operation: "listProjectPipelines",
+                  cause: decoded.failure,
+                }),
+              );
+        }),
+      );
+    }),
 
     listProjectLabels: Effect.fn("GitLabPullRequestCli.listProjectLabels")(function (input) {
       return projectLabels(input).pipe(

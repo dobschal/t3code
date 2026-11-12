@@ -4,6 +4,7 @@ import * as Exit from "effect/Exit";
 import * as Result from "effect/Result";
 import * as Schema from "effect/Schema";
 import type {
+  Pipeline,
   PullRequestActor,
   PullRequestCheck,
   PullRequestCheckStatus,
@@ -22,7 +23,7 @@ import type {
   PullRequestReviewerCandidate,
   PullRequestState,
 } from "@t3tools/contracts";
-import { TrimmedNonEmptyString } from "@t3tools/contracts";
+import { PipelineStatus, TrimmedNonEmptyString } from "@t3tools/contracts";
 import { quoteGitPatchPath } from "@t3tools/shared/gitPatchPath";
 import { decodeJsonResult } from "@t3tools/shared/schemaJson";
 
@@ -763,6 +764,45 @@ export function decodeProjectLabelsJson(
     }
   }
   return Result.succeed({ labels, rawCount: decoded.success.length });
+}
+
+const RawProjectPipelineSchema = Schema.Struct({
+  id: Schema.Int,
+  status: Schema.String,
+  ref: Schema.optional(Schema.NullOr(Schema.String)),
+  sha: Schema.optional(Schema.NullOr(Schema.String)),
+  source: Schema.optional(Schema.NullOr(Schema.String)),
+  web_url: Schema.optional(Schema.NullOr(Schema.String)),
+  created_at: Schema.optional(Schema.NullOr(Schema.String)),
+  updated_at: Schema.optional(Schema.NullOr(Schema.String)),
+});
+const decodeProjectPipelineEntry = Schema.decodeUnknownExit(RawProjectPipelineSchema);
+const isPipelineStatus = Schema.is(PipelineStatus);
+
+/** Entries with a status newer than this client knows are left out rather than failing the list. */
+export function decodeProjectPipelinesJson(
+  raw: string,
+): Result.Result<ReadonlyArray<Pipeline>, DecodeFailure> {
+  const decoded = decodeUnknownList(raw);
+  if (!Result.isSuccess(decoded)) return Result.fail(decoded.failure);
+  const pipelines: Pipeline[] = [];
+  for (const entry of decoded.success) {
+    const pipeline = decodeProjectPipelineEntry(entry);
+    if (Exit.isFailure(pipeline) || pipeline.value.id < 1) continue;
+    const status = pipeline.value.status.trim().toLowerCase();
+    if (!isPipelineStatus(status)) continue;
+    pipelines.push({
+      id: pipeline.value.id,
+      status,
+      ref: trimmed(pipeline.value.ref) ?? "",
+      sha: trimmed(pipeline.value.sha) ?? "",
+      source: trimmed(pipeline.value.source),
+      url: trimmed(pipeline.value.web_url),
+      createdAt: trimmed(pipeline.value.created_at),
+      updatedAt: trimmed(pipeline.value.updated_at),
+    });
+  }
+  return Result.succeed(pipelines);
 }
 
 export function decodeProjectMergeCapabilitiesJson(

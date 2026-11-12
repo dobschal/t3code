@@ -712,6 +712,15 @@ export function createPullRequestEnvironmentAtoms<R, E>(
       refreshIntervalMs: 10_000,
       refreshTrigger: ({ environmentId }) => refreshes({ environmentId, input: {} }),
     }),
+    // Polled while the thread details card shows it; the idle TTL stops polling once it closes.
+    pipelines: createEnvironmentRpcQueryAtomFamily(runtime, {
+      label: "environment-data:pull-requests:pipelines",
+      tag: WS_METHODS.pullRequestsPipelines,
+      staleTimeMs: 0,
+      refreshIntervalMs: 15_000,
+      idleTtlMs: 5_000,
+      refreshTrigger: ({ environmentId }) => refreshes({ environmentId, input: {} }),
+    }),
     // For callers that open a thread from the answer: a persisted one reads as final before
     // the connection is known, and a kept one can predate the thread.
     linkedThreadsUncached: createEnvironmentRpcQueryAtomFamily(runtime, {

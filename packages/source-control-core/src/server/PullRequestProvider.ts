@@ -35,6 +35,7 @@ import type {
   PullRequestReviewerCandidateList,
   PullRequestReviewerKind,
   PullRequestLabelCandidateList,
+  Pipeline,
   PullRequestState,
   PullRequestPreview,
   PullRequestUpdateMethod,
@@ -563,6 +564,11 @@ export interface PullRequestProviderApi {
   readonly listRepositoryLabels?: (
     input: ProviderRepositoryRef & { readonly query?: string | undefined },
   ) => Effect.Effect<ProviderFilterOptionPage<PullRequestLabel>, PullRequestProviderError>;
+
+  /** The repository's most recent CI/CD pipelines, newest first. */
+  readonly listPipelines?: (
+    input: ProviderRepositoryRef & { readonly limit: number },
+  ) => Effect.Effect<ReadonlyArray<Pipeline>, PullRequestProviderError>;
 
   /**
    * People who could have opened a change request in the repository, for narrowing a listing by

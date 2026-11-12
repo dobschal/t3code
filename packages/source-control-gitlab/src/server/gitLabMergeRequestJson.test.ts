@@ -19,6 +19,7 @@ import {
   decodeListStatesJson,
   decodeTriggerJobChecksJson,
   decodePipelineStageChecksJson,
+  decodeProjectPipelinesJson,
 } from "./gitLabMergeRequestJson.ts";
 
 function listJson(entries: ReadonlyArray<Record<string, unknown>>): string {
@@ -687,6 +688,53 @@ describe("decodeTriggerJobChecksJson", () => {
       ["deploy", "pending"],
     ]);
     expect(result.rawCount).toBe(3);
+  });
+});
+
+describe("decodeProjectPipelinesJson", () => {
+  it("reads project pipelines and leaves out entries it cannot place instead of failing", () => {
+    const result = expectSuccess(
+      decodeProjectPipelinesJson(
+        JSON.stringify([
+          {
+            id: 42,
+            status: "running",
+            ref: "main",
+            sha: "abc123",
+            source: "push",
+            web_url: "https://gitlab.com/acme/web/-/pipelines/42",
+            created_at: "2026-11-11T09:00:00Z",
+            updated_at: "2026-11-11T09:05:00Z",
+          },
+          { id: 41, status: "FAILED", ref: "feat/page", sha: "def456" },
+          { id: 40, status: "some_future_status", ref: "main", sha: "0" },
+          { id: "39", status: "success" },
+        ]),
+      ),
+    );
+
+    expect(result).toEqual([
+      {
+        id: 42,
+        status: "running",
+        ref: "main",
+        sha: "abc123",
+        source: "push",
+        url: "https://gitlab.com/acme/web/-/pipelines/42",
+        createdAt: "2026-11-11T09:00:00Z",
+        updatedAt: "2026-11-11T09:05:00Z",
+      },
+      {
+        id: 41,
+        status: "failed",
+        ref: "feat/page",
+        sha: "def456",
+        source: null,
+        url: null,
+        createdAt: null,
+        updatedAt: null,
+      },
+    ]);
   });
 });
 
