@@ -193,6 +193,8 @@ import {
   PullRequestListStatsResult,
   PullRequestFilterOptions,
   PullRequestFilterOptionsInput,
+  PipelineListInput,
+  PipelineListResult,
   PullRequestOperationError,
   PullRequestReactionInput,
   PullRequestRef,
@@ -565,6 +567,7 @@ export const WS_METHODS = {
   pullRequestsList: "pullRequests.list",
   pullRequestsListStats: "pullRequests.listStats",
   pullRequestsFilterOptions: "pullRequests.filterOptions",
+  pullRequestsPipelines: "pullRequests.pipelines",
   pullRequestsSummary: "pullRequests.summary",
   pullRequestsRouting: "pullRequests.routing",
   pullRequestsRoutingIdentity: "pullRequests.routingIdentity",
@@ -1052,6 +1055,12 @@ const WsPullRequestsListStatsRpc = Rpc.make(WS_METHODS.pullRequestsListStats, {
 const WsPullRequestsFilterOptionsRpc = Rpc.make(WS_METHODS.pullRequestsFilterOptions, {
   payload: PullRequestFilterOptionsInput,
   success: PullRequestFilterOptions,
+  error: PullRequestRpcError,
+});
+
+const WsPullRequestsPipelinesRpc = Rpc.make(WS_METHODS.pullRequestsPipelines, {
+  payload: PipelineListInput,
+  success: PipelineListResult,
   error: PullRequestRpcError,
 });
 
@@ -2139,6 +2148,7 @@ export const WsRpcGroup = RpcGroup.make(
   WsPullRequestsListRpc,
   WsPullRequestsListStatsRpc,
   WsPullRequestsFilterOptionsRpc,
+  WsPullRequestsPipelinesRpc,
   WsPullRequestsSummaryRpc,
   WsPullRequestsRoutingRpc,
   WsPullRequestsRoutingIdentityRpc,

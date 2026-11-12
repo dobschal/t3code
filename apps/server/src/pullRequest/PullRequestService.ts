@@ -24,6 +24,8 @@ import {
   type PullRequestAction,
   type PullRequestActionInput,
   type PullRequestActivity,
+  type PipelineListInput,
+  type PipelineListResult,
   type PullRequestCommentInput,
   type PullRequestCommentUpdateInput,
   type PullRequestDetail,
@@ -121,6 +123,7 @@ function supersedesReading(current: PullRequestReading | undefined, next: PullRe
 // Providers request one extra row; 99 stays within GitHub/GitLab's 100-row API limit.
 const DEFAULT_REPOSITORY_LIST_LIMIT = 99;
 const REPOSITORY_CONCURRENCY = 12;
+const DEFAULT_PIPELINE_LIMIT = 5;
 const REPOSITORY_SEARCH_CHUNK = 100;
 const FILTERED_LIST_READS = 5;
 
@@ -285,6 +288,9 @@ export class PullRequestService extends Context.Service<
     readonly labelCandidates: (
       input: PullRequestRef,
     ) => Effect.Effect<PullRequestLabelCandidateList, PullRequestError>;
+    readonly pipelines: (
+      input: PipelineListInput,
+    ) => Effect.Effect<PipelineListResult, PullRequestError>;
     readonly setLabels: (
       input: PullRequestLabelChangeInput,
     ) => Effect.Effect<void, PullRequestError>;
@@ -623,6 +629,9 @@ function withRateLimitBackoff(
     ...(api.listRepositoryLabels === undefined
       ? {}
       : { listRepositoryLabels: interactive("listRepositoryLabels", api.listRepositoryLabels) }),
+    ...(api.listPipelines === undefined
+      ? {}
+      : { listPipelines: wrap("listPipelines", api.listPipelines) }),
     ...(api.searchRepositoryAuthors === undefined
       ? {}
       : {
@@ -2662,6 +2671,22 @@ export const make = Effect.gen(function* () {
     return { labels: [], authors: items, references: [], truncated };
   });
 
+  const pipelines: PullRequestService["Service"]["pipelines"] = Effect.fn(
+    "PullRequestService.pipelines",
+  )(function* (input) {
+    const { supported } = yield* listWorkspaceProjects({ projectId: input.projectId });
+    const project = supported[0];
+    const list = project?.api.listPipelines;
+    if (project === undefined || list === undefined) return { supported: false, pipelines: [] };
+    const pipelines = yield* list({
+      cwd: project.project.workspaceRoot,
+      repository: project.repository,
+      host: project.host,
+      limit: input.limit ?? DEFAULT_PIPELINE_LIMIT,
+    }).pipe(Effect.mapError(toPullRequestError("pipelines")));
+    return { supported: true, pipelines };
+  });
+
   const labelCandidates: PullRequestService["Service"]["labelCandidates"] = (input) =>
     requireProject(input).pipe(
       Effect.flatMap((project): Effect.Effect<PullRequestLabelCandidateList, PullRequestError> => {
@@ -3880,6 +3905,7 @@ export const make = Effect.gen(function* () {
     reviewerCandidates,
     requestReviewers: invalidatedByMutation(requestReviewers),
     labelCandidates,
+    pipelines,
     setLabels: invalidatedByMutation(setLabels),
     invalidate,
   });

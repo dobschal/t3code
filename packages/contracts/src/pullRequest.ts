@@ -602,6 +602,46 @@ export const PullRequestFilterOptions = Schema.Struct({
 });
 export type PullRequestFilterOptions = typeof PullRequestFilterOptions.Type;
 
+/** GitLab's pipeline statuses; hosts without pipelines answer `supported: false`. */
+export const PipelineStatus = Schema.Literals([
+  "created",
+  "waiting_for_resource",
+  "preparing",
+  "pending",
+  "running",
+  "success",
+  "failed",
+  "canceled",
+  "skipped",
+  "manual",
+  "scheduled",
+]);
+export type PipelineStatus = typeof PipelineStatus.Type;
+
+export const Pipeline = Schema.Struct({
+  id: PositiveInt,
+  status: PipelineStatus,
+  ref: Schema.String,
+  sha: Schema.String,
+  source: Schema.NullOr(Schema.String),
+  url: Schema.NullOr(Schema.String),
+  createdAt: Schema.NullOr(IsoDateTime),
+  updatedAt: Schema.NullOr(IsoDateTime),
+});
+export type Pipeline = typeof Pipeline.Type;
+
+export const PipelineListInput = Schema.Struct({
+  projectId: ProjectId,
+  limit: Schema.optional(PositiveInt.check(Schema.isLessThanOrEqualTo(50))),
+});
+export type PipelineListInput = typeof PipelineListInput.Type;
+
+export const PipelineListResult = Schema.Struct({
+  supported: Schema.Boolean,
+  pipelines: Schema.Array(Pipeline),
+});
+export type PipelineListResult = typeof PipelineListResult.Type;
+
 /**
  * A separate request rather than a flag on the reads, so an explicit "refresh" one person
  * presses is the only thing that spends host requests — every ordinary read shares.
