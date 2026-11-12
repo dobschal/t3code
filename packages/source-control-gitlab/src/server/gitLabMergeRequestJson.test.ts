@@ -716,6 +716,7 @@ describe("decodeProjectPipelinesJson", () => {
     expect(result).toEqual([
       {
         id: 42,
+        name: null,
         status: "running",
         ref: "main",
         sha: "abc123",
@@ -726,6 +727,7 @@ describe("decodeProjectPipelinesJson", () => {
       },
       {
         id: 41,
+        name: null,
         status: "failed",
         ref: "feat/page",
         sha: "def456",

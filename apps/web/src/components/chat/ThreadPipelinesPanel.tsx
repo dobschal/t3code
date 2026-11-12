@@ -41,13 +41,17 @@ function pipelineRefLabel(pipeline: Pipeline): string {
   return pipeline.ref || `#${pipeline.id}`;
 }
 
+function pipelineTitle(pipeline: Pipeline): string {
+  return pipeline.name ?? `#${pipeline.id}`;
+}
+
 interface ThreadPipelinesPanelProps {
   readonly environmentId: EnvironmentId;
   readonly projectId: ProjectId;
   readonly threadId: ThreadId;
 }
 
-/** The project's latest GitLab CI/CD pipelines. Hidden on other hosts and while none exist. */
+/** The project's latest GitLab pipelines or GitHub workflow runs. Hidden while none exist. */
 export function ThreadPipelinesPanel(props: ThreadPipelinesPanelProps) {
   const threadRef = scopeThreadRef(props.environmentId, props.threadId);
   const openLink = useOpenLink(threadRef);
@@ -81,7 +85,7 @@ export function ThreadPipelinesPanel(props: ThreadPipelinesPanelProps) {
                 part="row"
                 multiline
                 disabled={pipeline.url === null}
-                aria-label={`Pipeline #${pipeline.id} on ${pipelineRefLabel(pipeline)}: ${presentation.label}`}
+                aria-label={`Pipeline ${pipelineTitle(pipeline)} on ${pipelineRefLabel(pipeline)}: ${presentation.label}`}
                 onClick={(event) => open(pipeline, event)}
                 onAuxClick={(event) => open(pipeline, event)}
               >
@@ -91,7 +95,7 @@ export function ThreadPipelinesPanel(props: ThreadPipelinesPanelProps) {
                     {pipelineRefLabel(pipeline)}
                   </span>
                   <span className="truncate text-2xs font-normal leading-4 text-muted-foreground">
-                    {presentation.label} · #{pipeline.id}
+                    {pipelineTitle(pipeline)} · {presentation.label}
                     {pipeline.updatedAt ? (
                       <>
                         {" · "}

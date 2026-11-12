@@ -698,6 +698,9 @@ export const make = Effect.gen(function* () {
     listRepositoryLabels: (input) =>
       cli.listRepositoryLabels(input).pipe(Effect.mapError(fail("listRepositoryLabels"))),
 
+    listPipelines: (input) =>
+      cli.listRepositoryWorkflowRuns(input).pipe(Effect.mapError(fail("listPipelines"))),
+
     searchRepositoryAuthors: (input) =>
       cli.searchRepositoryAuthors(input).pipe(Effect.mapError(fail("searchRepositoryAuthors"))),
 

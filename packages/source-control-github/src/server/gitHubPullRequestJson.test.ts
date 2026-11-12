@@ -10,6 +10,7 @@ import {
   toRepositoryReferences,
   toPullRequestWatchFingerprint,
   decodePullRequestFilesJson,
+  decodeRepositoryWorkflowRunsJson,
   decodePullRequestStacksJson,
   LenientPullRequestList,
   reviewThreadConversation,
@@ -1518,6 +1519,59 @@ describe("review submission payload", () => {
       },
       { path: "src/b.ts", line: 2, side: "RIGHT", body: "this line" },
     ]);
+  });
+});
+
+describe("decodeRepositoryWorkflowRunsJson", () => {
+  it("maps workflow runs onto pipelines and leaves out runs it cannot place", () => {
+    const run = (fields: Record<string, unknown>) => ({
+      head_branch: "main",
+      head_sha: "abc123",
+      ...fields,
+    });
+    const result = expectSuccess(
+      decodeRepositoryWorkflowRunsJson(
+        JSON.stringify({
+          total_count: 7,
+          workflow_runs: [
+            run({
+              id: 30_000_000_001,
+              name: "CI",
+              status: "in_progress",
+              conclusion: null,
+              event: "push",
+              html_url: "https://github.com/acme/web/actions/runs/30000000001",
+              created_at: "2026-11-11T09:00:00Z",
+              updated_at: "2026-11-11T09:05:00Z",
+            }),
+            run({ id: 6, status: "completed", conclusion: "timed_out" }),
+            run({ id: 5, status: "completed", conclusion: "cancelled" }),
+            run({ id: 4, status: "waiting" }),
+            run({ id: 3, status: "completed", conclusion: "some_future_conclusion" }),
+            run({ id: 2, status: "some_future_status" }),
+            { id: "1", status: "queued" },
+          ],
+        }),
+      ),
+    );
+
+    expect(result.map(({ id, status }) => ({ id, status }))).toEqual([
+      { id: 30_000_000_001, status: "running" },
+      { id: 6, status: "failed" },
+      { id: 5, status: "canceled" },
+      { id: 4, status: "manual" },
+    ]);
+    expect(result[0]).toEqual({
+      id: 30_000_000_001,
+      name: "CI",
+      status: "running",
+      ref: "main",
+      sha: "abc123",
+      source: "push",
+      url: "https://github.com/acme/web/actions/runs/30000000001",
+      createdAt: "2026-11-11T09:00:00Z",
+      updatedAt: "2026-11-11T09:05:00Z",
+    });
   });
 });
 

@@ -5,6 +5,8 @@ import * as Result from "effect/Result";
 import * as Schema from "effect/Schema";
 import { GraphQL } from "effect/graphql";
 import type {
+  Pipeline,
+  PipelineStatus,
   PullRequestStackMembership,
   PullRequestActor,
   PullRequestReferenceCandidate,
@@ -1149,6 +1151,77 @@ export function decodeUnfinishedWorkflowRunsJson(
         url: trimmed(run.html_url),
       })),
   );
+}
+
+const RawRepositoryWorkflowRunSchema = Schema.Struct({
+  id: Schema.Int,
+  name: Schema.optional(Schema.NullOr(Schema.String)),
+  status: Schema.optional(Schema.NullOr(Schema.String)),
+  conclusion: Schema.optional(Schema.NullOr(Schema.String)),
+  head_branch: Schema.optional(Schema.NullOr(Schema.String)),
+  head_sha: Schema.optional(Schema.NullOr(Schema.String)),
+  event: Schema.optional(Schema.NullOr(Schema.String)),
+  html_url: Schema.optional(Schema.NullOr(Schema.String)),
+  created_at: Schema.optional(Schema.NullOr(Schema.String)),
+  updated_at: Schema.optional(Schema.NullOr(Schema.String)),
+});
+const decodeRepositoryWorkflowRunPage = decodeJsonResult(
+  Schema.Struct({ workflow_runs: Schema.Array(Schema.Unknown) }),
+);
+const decodeRepositoryWorkflowRun = Schema.decodeUnknownExit(RawRepositoryWorkflowRunSchema);
+
+const WORKFLOW_RUN_STATUSES: Readonly<Record<string, PipelineStatus>> = {
+  requested: "pending",
+  queued: "pending",
+  pending: "pending",
+  waiting: "manual",
+  in_progress: "running",
+};
+const WORKFLOW_RUN_CONCLUSIONS: Readonly<Record<string, PipelineStatus>> = {
+  success: "success",
+  failure: "failed",
+  timed_out: "failed",
+  startup_failure: "failed",
+  cancelled: "canceled",
+  skipped: "skipped",
+  neutral: "skipped",
+  stale: "skipped",
+  action_required: "manual",
+};
+
+function workflowRunPipelineStatus(
+  status: string | null | undefined,
+  conclusion: string | null | undefined,
+): PipelineStatus | undefined {
+  if (status !== "completed") return WORKFLOW_RUN_STATUSES[status ?? ""];
+  return WORKFLOW_RUN_CONCLUSIONS[conclusion ?? ""];
+}
+
+/** A repository's workflow runs as pipelines; runs in a state this client does not know are left out. */
+export function decodeRepositoryWorkflowRunsJson(
+  raw: string,
+): Result.Result<ReadonlyArray<Pipeline>, DecodeFailure> {
+  const decoded = decodeRepositoryWorkflowRunPage(raw);
+  if (!Result.isSuccess(decoded)) return Result.fail(decoded.failure);
+  const pipelines: Pipeline[] = [];
+  for (const entry of decoded.success.workflow_runs) {
+    const run = decodeRepositoryWorkflowRun(entry);
+    if (Exit.isFailure(run) || run.value.id < 1) continue;
+    const status = workflowRunPipelineStatus(run.value.status, run.value.conclusion);
+    if (status === undefined) continue;
+    pipelines.push({
+      id: run.value.id,
+      name: trimmed(run.value.name),
+      status,
+      ref: trimmed(run.value.head_branch) ?? "",
+      sha: trimmed(run.value.head_sha) ?? "",
+      source: trimmed(run.value.event),
+      url: trimmed(run.value.html_url),
+      createdAt: trimmed(run.value.created_at),
+      updatedAt: trimmed(run.value.updated_at),
+    });
+  }
+  return Result.succeed(pipelines);
 }
 
 export function toPullRequestHeads(result: PullRequestHeads.Result): {

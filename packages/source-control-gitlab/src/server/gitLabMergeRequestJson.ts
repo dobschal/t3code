@@ -768,6 +768,7 @@ export function decodeProjectLabelsJson(
 
 const RawProjectPipelineSchema = Schema.Struct({
   id: Schema.Int,
+  name: Schema.optional(Schema.NullOr(Schema.String)),
   status: Schema.String,
   ref: Schema.optional(Schema.NullOr(Schema.String)),
   sha: Schema.optional(Schema.NullOr(Schema.String)),
@@ -793,6 +794,7 @@ export function decodeProjectPipelinesJson(
     if (!isPipelineStatus(status)) continue;
     pipelines.push({
       id: pipeline.value.id,
+      name: trimmed(pipeline.value.name),
       status,
       ref: trimmed(pipeline.value.ref) ?? "",
       sha: trimmed(pipeline.value.sha) ?? "",

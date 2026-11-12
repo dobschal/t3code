@@ -43,6 +43,7 @@ import {
   type PullRequestThreadCommentsResult,
   type PullRequestUpdateMethod,
   type PullRequestPreview,
+  type Pipeline,
 } from "@t3tools/contracts";
 
 import * as GitHubAppAccess from "./GitHubAppAccess.ts";
@@ -70,6 +71,7 @@ import {
   pullRequestChecksFromContexts,
   decodeWorkflowRunsJson,
   decodeUnfinishedWorkflowRunsJson,
+  decodeRepositoryWorkflowRunsJson,
   type GitHubPullRequestCore,
   type GitHubPullRequestFileStat,
   type GitHubPullRequestWatchFingerprint,
@@ -557,6 +559,14 @@ export class GitHubPullRequestApi extends Context.Service<
       readonly host: string;
       readonly headSha: string;
     }) => Effect.Effect<ReadonlyArray<GitHubWorkflowRunApproval>, GitHubPullRequestApiError>;
+
+    /** The repository's latest workflow runs, newest first. */
+    readonly listRepositoryWorkflowRuns: (input: {
+      readonly cwd: string;
+      readonly repository: string;
+      readonly host: string;
+      readonly limit: number;
+    }) => Effect.Effect<ReadonlyArray<Pipeline>, GitHubPullRequestApiError>;
 
     readonly getPullRequestStack: (input: {
       readonly cwd: string;
@@ -2095,6 +2105,20 @@ export const make = Effect.gen(function* () {
           operation: "listUnfinishedWorkflowRuns",
           path: `repos/${owner}/${name}/actions/runs?head_sha=${encodeURIComponent(input.headSha)}&per_page=100`,
           decode: decodeUnfinishedWorkflowRunsJson,
+        });
+      },
+    ),
+
+    listRepositoryWorkflowRuns: Effect.fn("GitHubPullRequestApi.listRepositoryWorkflowRuns")(
+      function (input) {
+        const { owner, name } = parseRepositorySelector(input.repository);
+        // Polled while the thread details show pipelines, so revalidate it.
+        return revalidatedRestRead({
+          cwd: input.cwd,
+          host: input.host,
+          operation: "listRepositoryWorkflowRuns",
+          path: `repos/${owner}/${name}/actions/runs?per_page=${Math.min(input.limit, 100)}`,
+          decode: decodeRepositoryWorkflowRunsJson,
         });
       },
     ),

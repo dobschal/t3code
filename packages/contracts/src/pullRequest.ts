@@ -602,7 +602,10 @@ export const PullRequestFilterOptions = Schema.Struct({
 });
 export type PullRequestFilterOptions = typeof PullRequestFilterOptions.Type;
 
-/** GitLab's pipeline statuses; hosts without pipelines answer `supported: false`. */
+/**
+ * GitLab's pipeline statuses; GitHub workflow runs map onto them. Hosts without pipelines answer
+ * `supported: false`.
+ */
 export const PipelineStatus = Schema.Literals([
   "created",
   "waiting_for_resource",
@@ -620,6 +623,8 @@ export type PipelineStatus = typeof PipelineStatus.Type;
 
 export const Pipeline = Schema.Struct({
   id: PositiveInt,
+  /** The workflow name on GitHub; GitLab pipelines rarely carry one. */
+  name: Schema.NullOr(Schema.String),
   status: PipelineStatus,
   ref: Schema.String,
   sha: Schema.String,
